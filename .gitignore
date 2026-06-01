@@ -35,11 +35,11 @@ yarn-error.*
 .env*.local
 .env.production
 
-# Generated stories — rebuilt by pipeline, not source-controlled
-src/features/discover/generatedStories.ts
-src/features/home/techReleases.ts
-src/features/home/newStartups.ts
-src/features/home/startupOfDay.ts
+# Generated stories — rebuilt by pipeline locally, committed for Vercel build
+# src/features/discover/generatedStories.ts
+# src/features/home/techReleases.ts
+# src/features/home/newStartups.ts
+# src/features/home/startupOfDay.ts
 
 # typescript
 *.tsbuildinfo
@@ -47,3 +47,4 @@ src/features/home/startupOfDay.ts
 # generated native folders
 /ios
 /android
+.vercel
