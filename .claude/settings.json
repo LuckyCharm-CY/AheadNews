@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//usr/local/bin/**)",
+      "Bash(crontab -r)"
+    ],
+    "additionalDirectories": [
+      "/Users/oliviachew/Library/LaunchAgents"
+    ]
+  }
+}
