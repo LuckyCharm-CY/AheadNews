@@ -171,10 +171,14 @@ type NotifItem = {
 function useForumNotifications() {
   const { user } = useAuth();
   const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
+  const lastSeenAtRef = useRef<string | null>(null);
   const [items, setItems] = useState<NotifItem[]>([]);
 
   useEffect(() => {
-    readLastSeen().then(setLastSeenAt);
+    readLastSeen().then(val => {
+      lastSeenAtRef.current = val;
+      setLastSeenAt(val);
+    });
   }, []);
 
   const fetchItems = useCallback(async (userId: string, since: string | null) => {
@@ -251,28 +255,31 @@ function useForumNotifications() {
     setItems(results);
   }, []);
 
+  // Re-fetch when user or lastSeenAt changes
   useEffect(() => {
     if (!user?.id) return;
     fetchItems(user.id, lastSeenAt);
   }, [user?.id, lastSeenAt, fetchItems]);
 
-  // Live updates
+  // Live updates — stable subscription, ref keeps lastSeenAt fresh without re-subscribing
   useEffect(() => {
     if (!user?.id) return;
+    const userId = user.id;
     const channel = supabase
-      .channel("home:notifications")
+      .channel(`home:notifications:${userId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments" }, () => {
-        fetchItems(user.id, lastSeenAt);
+        fetchItems(userId, lastSeenAtRef.current);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id, lastSeenAt, fetchItems]);
+  }, [user?.id, fetchItems]);
 
   const unreadCount = items.filter(i => i.isUnread).length;
 
   const markAllRead = useCallback(async () => {
     const now = new Date().toISOString();
     await writeLastSeen(now);
+    lastSeenAtRef.current = now;
     setLastSeenAt(now);
     setItems(prev => prev.map(i => ({ ...i, isUnread: false })));
   }, []);
