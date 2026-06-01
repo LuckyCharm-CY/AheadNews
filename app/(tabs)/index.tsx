@@ -261,18 +261,22 @@ function useForumNotifications() {
     fetchItems(user.id, lastSeenAt);
   }, [user?.id, lastSeenAt, fetchItems]);
 
-  // Live updates — stable subscription, ref keeps lastSeenAt fresh without re-subscribing
+  // Keep fetchItems in a ref so the channel effect never needs it as a dep
+  const fetchItemsRef = useRef(fetchItems);
+  fetchItemsRef.current = fetchItems;
+
+  // Live updates — unique channel name per mount prevents Supabase reuse errors
   useEffect(() => {
     if (!user?.id) return;
     const userId = user.id;
     const channel = supabase
-      .channel(`home:notifications:${userId}`)
+      .channel(`home:notif:${userId}:${Date.now()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "comments" }, () => {
-        fetchItems(userId, lastSeenAtRef.current);
+        fetchItemsRef.current(userId, lastSeenAtRef.current);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id, fetchItems]);
+  }, [user?.id]); // only re-subscribe when user changes
 
   const unreadCount = items.filter(i => i.isUnread).length;
 
