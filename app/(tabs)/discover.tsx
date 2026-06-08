@@ -44,18 +44,6 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; dark:
   "singapore-life":      { label: "SG Life",   color: "#9D174D", bg: "#FCE7F3", dark: "#6B0F35" },
 };
 
-const CAT_INSIGHT: Record<string, string> = {
-  "world-news":         "Important global update",
-  "ai-tech":            "Trending with AI engineers & researchers",
-  "business-finance":   "Key reading for investors & founders",
-  "world-sports":       "Sports highlight",
-  "world-life":         "Lifestyle & culture",
-  "singapore-news":     "Local Singapore update",
-  "singapore-tech":     "Singapore tech & startup scene",
-  "singapore-business": "Singapore business update",
-  "singapore-sports":   "Singapore sports highlight",
-  "singapore-life":     "Singapore lifestyle & culture",
-};
 
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
 
@@ -764,9 +752,6 @@ function SwipeView({
               </>
             ) : null}
 
-            <Text style={{ fontSize: 11, color: "#ADADAA", fontStyle: "italic", marginTop: 4 }}>
-              {CAT_INSIGHT[story.category] ?? "Recommended for you"}
-            </Text>
           </ScrollView>
 
           {/* Action bar */}
