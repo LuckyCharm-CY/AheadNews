@@ -5,12 +5,12 @@ import { Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-nativ
 import { type InterestId, useInterests } from '@/src/features/interests/InterestsContext';
 
 const TOPICS: { id: InterestId; label: string; desc: string; color: string; text: string }[] = [
-  { id: 'ai-tech',          label: 'AI & Technology', desc: 'Models, tools, developer news',  color: '#EDE9FE', text: '#5B21B6' },
-  { id: 'world-news',       label: 'World News',       desc: 'Global events & geopolitics',    color: '#E8F1FB', text: '#1A5BA6' },
-  { id: 'business-finance', label: 'Business',         desc: 'Markets, economy & deals',       color: '#FEF3C7', text: '#92400E' },
-  { id: 'world-sports',     label: 'Sports',           desc: 'Scores, transfers & matches',    color: '#FEE2E2', text: '#991B1B' },
-  { id: 'world-life',       label: 'Lifestyle',        desc: 'Culture, health & society',      color: '#F0FDF4', text: '#166534' },
-  { id: 'singapore-news',   label: 'Local SG News',    desc: 'Singapore & Southeast Asia',     color: '#FFF7ED', text: '#9A3412' },
+  { id: 'ai-tech',          label: 'AI & Tech',      desc: 'Models, tools, developer news',  color: '#EDE9FE', text: '#5B21B6' },
+  { id: 'world-news',       label: 'World',          desc: 'Global events & geopolitics',    color: '#E8F1FB', text: '#1A5BA6' },
+  { id: 'business-finance', label: 'Finance',        desc: 'Markets, economy & deals',       color: '#FEF3C7', text: '#92400E' },
+  { id: 'world-sports',     label: 'Sports',         desc: 'Scores, transfers & matches',    color: '#FEE2E2', text: '#991B1B' },
+  { id: 'world-life',       label: 'Life',           desc: 'Culture, health & society',      color: '#F0FDF4', text: '#166534' },
+  { id: 'singapore-news',   label: 'Local SG News',  desc: 'Singapore & Southeast Asia',     color: '#FFF7ED', text: '#9A3412' },
 ];
 
 const C = {

@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Image,
   Modal,
   Platform,
@@ -17,41 +16,10 @@ import {
 import * as SecureStore from "expo-secure-store";
 import { useAuth } from "@/src/features/auth/AuthContext";
 import { supabase } from "@/src/lib/supabase";
-import { discoverStories, getFeaturedStoryByCategory } from "@/src/features/discover/data";
+import { discoverStories } from "@/src/features/discover/data";
 import { useSavedStories } from "@/src/features/discover/SavedStoriesContext";
 import type { DiscoverCategoryId, DiscoverStory } from "@/src/features/discover/types";
-import { newStartups, type NewStartup } from "@/src/features/home/newStartups";
-import { startupOfDay, startupOfDayUpdatedAt } from "@/src/features/home/startupOfDay";
-import { techReleases, type TechRelease } from "@/src/features/home/techReleases";
 import { useInterests } from "@/src/features/interests/InterestsContext";
-
-// ─── Web drag-to-scroll ───────────────────────────────────────────────────────
-
-function HScrollView({ children }: { children: React.ReactNode }) {
-  const ref = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    const node = (ref.current?.getScrollableNode?.() ?? (ref.current as any)?._scrollNode) as HTMLElement | null;
-    if (!node) return;
-    const state = { down: false, startX: 0, scrollLeft: 0 };
-    node.style.cursor = "grab";
-    node.style.userSelect = "none";
-    const onDown = (e: MouseEvent) => { state.down = true; state.startX = e.pageX; state.scrollLeft = node.scrollLeft; node.style.cursor = "grabbing"; };
-    const onUp   = () => { state.down = false; node.style.cursor = "grab"; };
-    const onMove = (e: MouseEvent) => { if (!state.down) return; e.preventDefault(); node.scrollLeft = state.scrollLeft - (e.pageX - state.startX); };
-    node.addEventListener("mousedown", onDown);
-    window.addEventListener("mouseup", onUp);
-    node.addEventListener("mousemove", onMove);
-    return () => { node.removeEventListener("mousedown", onDown); window.removeEventListener("mouseup", onUp); node.removeEventListener("mousemove", onMove); };
-  }, []);
-
-  return (
-    <ScrollView ref={ref} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScrollContent}>
-      {children}
-    </ScrollView>
-  );
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -386,193 +354,6 @@ function SectionHeader({ label, onSeeAll, seeAllLabel = "See all →" }: { label
   );
 }
 
-// ─── Startup of the Day hero card ─────────────────────────────────────────────
-
-function HeroCard({ isSaved, onToggleSave }: { isSaved: boolean; onToggleSave: () => void }) {
-  const router = useRouter();
-  const [imgFailed, setImgFailed] = useState(false);
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const handleHeartPress = () => {
-    Animated.sequence([
-      Animated.spring(scale, { toValue: 1.35, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: 1,    useNativeDriver: true }),
-    ]).start();
-    onToggleSave();
-  };
-
-  return (
-    <View style={styles.heroCard}>
-      {startupOfDay.imageUrl && !imgFailed && (
-        <Image
-          source={{ uri: startupOfDay.imageUrl }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-          onError={() => setImgFailed(true)}
-        />
-      )}
-      <View style={[StyleSheet.absoluteFillObject, styles.heroOverlay]} />
-
-      <View style={styles.heroContent}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.liveBadge}>
-            <Text style={styles.liveBadgeText}>{updatedLabel(startupOfDayUpdatedAt)}</Text>
-          </View>
-          {/* Heart save button */}
-          <Pressable onPress={handleHeartPress} hitSlop={10}>
-            <Animated.View style={{ transform: [{ scale }] }}>
-              <Ionicons
-                name={isSaved ? "heart" : "heart-outline"}
-                size={24}
-                color={isSaved ? "#F87171" : "rgba(255,255,255,0.6)"}
-              />
-            </Animated.View>
-          </Pressable>
-        </View>
-
-        <Text style={styles.heroName}>{startupOfDay.name}</Text>
-
-        {startupOfDay.problemSolved ? (
-          <Text style={styles.heroDescription} numberOfLines={3}>
-            {startupOfDay.problemSolved}
-          </Text>
-        ) : (
-          <Text style={styles.heroDescription} numberOfLines={2}>
-            {startupOfDay.oneLiner}
-          </Text>
-        )}
-
-        <View style={styles.heroMetaRow}>
-          {startupOfDay.foundedYear && (
-            <View style={styles.metaTag}>
-              <Text style={styles.metaTagText}>Founded {startupOfDay.foundedYear}</Text>
-            </View>
-          )}
-          <View style={styles.metaTag}>
-            <Text style={styles.metaTagText}>Startup of the Day</Text>
-          </View>
-        </View>
-
-        <Pressable style={styles.btnPrimary} onPress={() => router.push("/story/startup-of-day")}>
-          <Text style={styles.btnPrimaryText}>Read full story</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-// ─── Tech Release card ────────────────────────────────────────────────────────
-
-function TechReleaseCard({ item }: { item: TechRelease }) {
-  const router = useRouter();
-  const chip = CATEGORY_CHIP_COLORS[item.category] ?? { bg: "#F1EFE8", text: "#5F5E5A" };
-  return (
-    <ScaleCard style={styles.releaseCard} onPress={() => router.push(`/item/${item.id}`)}>
-      <View style={[styles.releaseAccentBar, { backgroundColor: chip.bg }]} />
-      <View style={{ padding: 14, flex: 1, justifyContent: "space-between" }}>
-        <View>
-          <View style={styles.releaseCardTopRow}>
-            <CompanyLogo domain={item.domain} initials={item.initials} bgColor={item.iconBg} size={38} />
-            <Text style={styles.releaseDate}>{formatReleaseDate(item.releasedDate)}</Text>
-          </View>
-          <Text style={styles.releaseCardName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.releaseCardDesc} numberOfLines={4}>{item.description}</Text>
-        </View>
-        <View style={[styles.chip, { backgroundColor: chip.bg }]}>
-          <Text style={[styles.chipText, { color: chip.text }]}>{item.category}</Text>
-        </View>
-      </View>
-    </ScaleCard>
-  );
-}
-
-// ─── Startups to Watch — auto-advancing carousel ─────────────────────────────
-
-const CARD_MARGIN = 10;
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const CAROUSEL_CARD_WIDTH = SCREEN_WIDTH - 20 * 2 - CARD_MARGIN * 2; // full bleed minus side padding & peek
-
-function StartupsCarousel({ items }: { items: NewStartup[] }) {
-  const router = useRouter();
-  const scrollRef = useRef<ScrollView>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const stepWidth = CAROUSEL_CARD_WIDTH + CARD_MARGIN * 2;
-
-  // Auto-advance every 3.5s, pause on manual interaction
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const advance = (next: number) => {
-    const idx = next % items.length;
-    scrollRef.current?.scrollTo({ x: idx * stepWidth, animated: true });
-    setActiveIndex(idx);
-  };
-
-  const startTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setActiveIndex(prev => {
-        const next = (prev + 1) % items.length;
-        scrollRef.current?.scrollTo({ x: next * stepWidth, animated: true });
-        return next;
-      });
-    }, 3500);
-  };
-
-  useEffect(() => {
-    startTimer();
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [items.length]);
-
-  return (
-    <View>
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={stepWidth}
-        decelerationRate="fast"
-        contentContainerStyle={styles.carouselContent}
-        onScrollBeginDrag={() => { if (timerRef.current) clearInterval(timerRef.current); }}
-        onMomentumScrollEnd={e => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / stepWidth);
-          setActiveIndex(idx);
-          startTimer();
-        }}
-        scrollEventThrottle={16}
-      >
-        {items.map((item, i) => (
-          <Pressable
-            key={item.id}
-            style={[styles.carouselCard, i === activeIndex && styles.carouselCardActive]}
-            onPress={() => router.push(`/item/${item.id}`)}
-          >
-            <View style={styles.startupCardHeader}>
-              <CompanyLogo domain={item.domain} initials={item.initials} bgColor={item.avatarColor} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.startupCardName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.startupCardStage}>{item.stage} · {item.sector}</Text>
-              </View>
-            </View>
-            <Text style={styles.startupCardDesc} numberOfLines={4}>{item.description}</Text>
-            <View style={styles.startupRaisedBadge}>
-              <Text style={styles.startupRaisedText}>Raised {item.raisedAmount}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Dot indicators */}
-      <View style={styles.dotRow}>
-        {items.map((_, i) => (
-          <Pressable key={i} onPress={() => advance(i)}>
-            <View style={[styles.dot, i === activeIndex && styles.dotActive]} />
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 // ─── Category colors & labels ─────────────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; accent: string }> = {
@@ -740,41 +521,33 @@ const SG_CATS: DiscoverCategoryId[] = [
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { savedIds, toggleSave, registerExtra } = useSavedStories();
   const { interests } = useInterests();
 
-  const heroSaved = startupOfDay ? savedIds.includes(startupOfDay.id) : false;
-
-  const forYouStories = useMemo<DiscoverStory[]>(() => {
+  const feedStories = useMemo<DiscoverStory[]>(() => {
     if (interests.length === 0) return [];
 
-    // Build a story pool per interest (preserving order from the feed)
     const pools: DiscoverStory[][] = interests.map(interest => {
       const cats: DiscoverCategoryId[] = interest === "singapore-news" ? SG_CATS : [interest];
       return discoverStories.filter(s => cats.includes(s.category));
     });
 
-    // Round-robin: take 1 from each pool in turn so every interest is represented evenly
+    // Round-robin across interests for even distribution
     const result: DiscoverStory[] = [];
     const seen = new Set<string>();
     const cursors = new Array(pools.length).fill(0);
 
-    while (result.length < 8) {
+    while (result.length < 20) {
       let anyAdded = false;
-      for (let i = 0; i < pools.length && result.length < 8; i++) {
-        // Advance past already-seen stories
-        while (cursors[i] < pools[i].length && seen.has(pools[i][cursors[i]].id)) {
-          cursors[i]++;
-        }
+      for (let i = 0; i < pools.length && result.length < 20; i++) {
+        while (cursors[i] < pools[i].length && seen.has(pools[i][cursors[i]].id)) cursors[i]++;
         if (cursors[i] < pools[i].length) {
-          const story = pools[i][cursors[i]];
-          seen.add(story.id);
-          result.push(story);
+          seen.add(pools[i][cursors[i]].id);
+          result.push(pools[i][cursors[i]]);
           cursors[i]++;
           anyAdded = true;
         }
       }
-      if (!anyAdded) break; // all pools exhausted
+      if (!anyAdded) break;
     }
 
     return result;
@@ -796,73 +569,39 @@ export default function HomeScreen() {
         </View>
       </FadeInView>
 
-      {/* ── Startup of the Day ── */}
-      {startupOfDay && (
-        <FadeInView delay={60}>
-          <SectionHeader label="Startup of the Day" />
-          <HeroCard
-            isSaved={heroSaved}
-            onToggleSave={() => {
-              registerExtra({
-                id: startupOfDay.id,
-                category: "ai-tech",
-                headline: startupOfDay.name,
-                summary: startupOfDay.problemSolved || startupOfDay.oneLiner,
-                whyItMatters: startupOfDay.oneLiner,
-                source: "Startup of the Day",
-                readTime: "3 min read",
-                imageUrl: startupOfDay.imageUrl,
-                publishedAt: startupOfDayUpdatedAt,
-              });
-              toggleSave(startupOfDay.id);
-            }}
-          />
-        </FadeInView>
-      )}
+      {/* ── Personalised feed ── */}
+      <FadeInView delay={60}>
+        <View style={styles.feedHeader}>
+          <Text style={styles.feedLabel}>Your Feed</Text>
+          <Pressable onPress={() => router.push("/(onboarding)/interests")} hitSlop={8}>
+            <Text style={styles.feedEdit}>Edit topics →</Text>
+          </Pressable>
+        </View>
 
-      {/* ── For You ── */}
-      <FadeInView delay={90}>
-        <SectionHeader
-          label="For You"
-          onSeeAll={() => router.push("/(onboarding)/interests")}
-          seeAllLabel="Edit topics →"
-        />
-        {forYouStories.length === 0 ? (
+        {feedStories.length === 0 ? (
           <ForYouEmpty onPress={() => router.push("/(onboarding)/interests")} />
         ) : (
-          <ForYouList stories={forYouStories} />
+          <View style={styles.forYouList}>
+            {feedStories.map((s, i) => (
+              <View key={s.id}>
+                <ForYouCard story={s} />
+                {i < feedStories.length - 1 && <View style={styles.forYouDivider} />}
+              </View>
+            ))}
+          </View>
         )}
       </FadeInView>
 
-      {/* ── New Tech Releases ── */}
-      {techReleases.length > 0 && (
+      {/* ── Browse by Topic ── */}
+      {feedStories.length > 0 && (
         <FadeInView delay={120}>
           <SectionHeader
-            label="New Tech Releases"
-            onSeeAll={() => router.push({ pathname: "/(tabs)/discover", params: { filter: "ai-tech" } })}
+            label="Browse by Topic"
+            onSeeAll={() => router.push("/(tabs)/discover")}
           />
-          <HScrollView>
-            {techReleases.map(item => <TechReleaseCard key={item.id} item={item} />)}
-          </HScrollView>
+          <TopicPillBar />
         </FadeInView>
       )}
-
-      {/* ── Startups to Watch ── */}
-      {newStartups.length > 0 && (
-        <FadeInView delay={150}>
-          <SectionHeader label="Startups to Watch" />
-          <StartupsCarousel items={newStartups} />
-        </FadeInView>
-      )}
-
-      {/* ── Browse by Topic pill bar ── */}
-      <FadeInView delay={180}>
-        <SectionHeader
-          label="Browse by Topic"
-          onSeeAll={() => router.push("/(tabs)/discover")}
-        />
-        <TopicPillBar />
-      </FadeInView>
 
     </ScrollView>
   );
@@ -1027,149 +766,27 @@ const styles = StyleSheet.create({
     color: "#1A1A18",
   },
 
-  // ── Hero card ──
-  heroCard: {
-    marginHorizontal: 20,
-    borderRadius: 20,
-    overflow: "hidden",
-    backgroundColor: "#1A1A18",
-    minHeight: 220,
-  },
-  heroOverlay: {
-    backgroundColor: "rgba(15,13,10,0.76)",
-    borderRadius: 20,
-  },
-  heroContent: {
-    padding: 20,
-  },
-  liveBadge: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.18)",
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    alignSelf: "flex-start",
-  },
-  liveBadgeText: {
-    fontSize: 11,
-    color: "#C8C5BA",
-    fontWeight: "500",
-  },
-  heroName: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#F8F7F4",
-    letterSpacing: -0.3,
-    marginBottom: 8,
-  },
-  heroDescription: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.72)",
-    lineHeight: 21,
-    marginBottom: 16,
-  },
-  heroMetaRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 18,
-  },
-  metaTag: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  metaTagText: {
-    fontSize: 11,
-    color: "#C8C5BA",
-  },
-  heroTopRow: {
+  // ── Feed header ──
+  feedHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  btnPrimary: {
-    flex: 1,
-    backgroundColor: "#F8F7F4",
-    borderRadius: 12,
-    paddingVertical: 11,
-    alignItems: "center",
-  },
-  btnPrimaryText: { color: "#1A1A18", fontSize: 13, fontWeight: "700" },
-
-  // ── Horizontal scroll ──
-  hScrollContent: { paddingHorizontal: 20, gap: 10 },
-
-  // ── Tech Release card ──
-  releaseCard: {
-    width: 185,
-    height: 240,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: "#E5E3DC",
-    overflow: "hidden",
-  },
-  releaseAccentBar: { height: 5, width: "100%" },
-  releaseCardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  releaseDate: { fontSize: 11, color: "#888780", fontWeight: "500" },
-  releaseCardName: { fontSize: 13, fontWeight: "700", color: "#1A1A18", marginBottom: 5 },
-  releaseCardDesc: { fontSize: 12, color: "#5F5E5A", lineHeight: 18, marginBottom: 10 },
-  chip: { alignSelf: "flex-start", borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
-  chipText: { fontSize: 11, fontWeight: "600" },
-
-  // ── Startups carousel ──
-  carouselContent: {
     paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 12,
   },
-  carouselCard: {
-    width: CAROUSEL_CARD_WIDTH,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: "#E5E3DC",
-    padding: 18,
-    marginHorizontal: CARD_MARGIN,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+  feedLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: "#5F5E5A",
   },
-  carouselCardActive: {
-    shadowOpacity: 0.13,
-    shadowRadius: 16,
-    elevation: 5,
+  feedEdit: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1A1A18",
   },
-  dotRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 14,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#D4D2CA",
-  },
-  dotActive: {
-    width: 18,
-    backgroundColor: "#1A1A18",
-    borderRadius: 3,
-  },
-  startupCardHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
-  startupCardName:   { fontSize: 14, fontWeight: "700", color: "#1A1A18" },
-  startupCardStage:  { fontSize: 11, color: "#888780", marginTop: 2 },
-  startupCardDesc:   { fontSize: 13, color: "#5F5E5A", lineHeight: 19, marginBottom: 14 },
   startupRaisedBadge:{ backgroundColor: "#EAF3DE", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, alignSelf: "flex-start" },
   startupRaisedText: { fontSize: 12, fontWeight: "700", color: "#3B6D11" },
 
