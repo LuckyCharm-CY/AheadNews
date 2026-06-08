@@ -157,6 +157,32 @@ function parseItems(xml) {
   return [...xml.matchAll(/<(item|entry)\b[\s\S]*?<\/(item|entry)>/gi)].map(m => m[0]);
 }
 
+// ─── OG image fetcher ────────────────────────────────────────────────────────
+
+async function fetchOgImage(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'AheadNewsBot/1.0', Accept: 'text/html' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    // og:image (two attribute orderings)
+    const og =
+      html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)?.[1];
+    if (og) return og;
+    // twitter:image fallback
+    const tw =
+      html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)?.[1] ??
+      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)?.[1];
+    return tw ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── LLM description enrichment ──────────────────────────────────────────────
 
 async function enrichTechDescription(client, name, rawDesc, category) {
@@ -412,13 +438,18 @@ Return this JSON (no extra keys):
   const raw = completion.choices[0]?.message?.content?.trim() ?? '';
   const parsed = JSON.parse(raw);
 
+  // Prefer the real article's OG image; fall back to a deterministic placeholder
+  const ogImage = await fetchOgImage(startup.url);
+  const imageUrl = ogImage ?? `https://picsum.photos/seed/${encodeURIComponent(parsed.name)}/1400/900`;
+  console.log(`[home:rss] startup-of-day image: ${ogImage ? 'og:image from article' : 'picsum fallback'}`);
+
   return {
     id: 'startup-of-day',
     name: parsed.name,
     oneLiner: parsed.oneLiner,
     foundedYear: String(parsed.foundedYear),
     problemSolved: parsed.problemSolved,
-    imageUrl: `https://picsum.photos/seed/${encodeURIComponent(parsed.name)}/1400/900`,
+    imageUrl,
     storyTitle: `Startup of the Day: ${parsed.name}`,
     storyParagraphs: parsed.storyParagraphs,
   };
