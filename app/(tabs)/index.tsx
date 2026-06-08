@@ -747,19 +747,36 @@ export default function HomeScreen() {
 
   const forYouStories = useMemo<DiscoverStory[]>(() => {
     if (interests.length === 0) return [];
-    const seen = new Set<string>();
-    const result: DiscoverStory[] = [];
-    for (const interest of interests) {
+
+    // Build a story pool per interest (preserving order from the feed)
+    const pools: DiscoverStory[][] = interests.map(interest => {
       const cats: DiscoverCategoryId[] = interest === "singapore-news" ? SG_CATS : [interest];
-      for (const s of discoverStories) {
-        if (cats.includes(s.category) && !seen.has(s.id)) {
-          seen.add(s.id);
-          result.push(s);
+      return discoverStories.filter(s => cats.includes(s.category));
+    });
+
+    // Round-robin: take 1 from each pool in turn so every interest is represented evenly
+    const result: DiscoverStory[] = [];
+    const seen = new Set<string>();
+    const cursors = new Array(pools.length).fill(0);
+
+    while (result.length < 8) {
+      let anyAdded = false;
+      for (let i = 0; i < pools.length && result.length < 8; i++) {
+        // Advance past already-seen stories
+        while (cursors[i] < pools[i].length && seen.has(pools[i][cursors[i]].id)) {
+          cursors[i]++;
         }
-        if (result.length >= 8) break;
+        if (cursors[i] < pools[i].length) {
+          const story = pools[i][cursors[i]];
+          seen.add(story.id);
+          result.push(story);
+          cursors[i]++;
+          anyAdded = true;
+        }
       }
-      if (result.length >= 8) break;
+      if (!anyAdded) break; // all pools exhausted
     }
+
     return result;
   }, [interests]);
 
