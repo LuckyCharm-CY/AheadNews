@@ -443,7 +443,7 @@ function HeroCard({ isSaved, onToggleSave }: { isSaved: boolean; onToggleSave: (
         )}
 
         <View style={styles.heroMetaRow}>
-          {startupOfDay.foundedYear && startupOfDay.foundedYear !== "unknown" && (
+          {startupOfDay.foundedYear && (
             <View style={styles.metaTag}>
               <Text style={styles.metaTagText}>Founded {startupOfDay.foundedYear}</Text>
             </View>
@@ -743,7 +743,7 @@ export default function HomeScreen() {
   const { savedIds, toggleSave, registerExtra } = useSavedStories();
   const { interests } = useInterests();
 
-  const heroSaved = savedIds.includes(startupOfDay.id);
+  const heroSaved = startupOfDay ? savedIds.includes(startupOfDay.id) : false;
 
   const forYouStories = useMemo<DiscoverStory[]>(() => {
     if (interests.length === 0) return [];
@@ -780,26 +780,28 @@ export default function HomeScreen() {
       </FadeInView>
 
       {/* ── Startup of the Day ── */}
-      <FadeInView delay={60}>
-        <SectionHeader label="Startup of the Day" />
-        <HeroCard
-          isSaved={heroSaved}
-          onToggleSave={() => {
-            registerExtra({
-              id: startupOfDay.id,
-              category: "ai-tech",
-              headline: startupOfDay.name,
-              summary: startupOfDay.problemSolved || startupOfDay.oneLiner,
-              whyItMatters: startupOfDay.oneLiner,
-              source: "Startup of the Day",
-              readTime: "3 min read",
-              imageUrl: startupOfDay.imageUrl,
-              publishedAt: startupOfDayUpdatedAt,
-            });
-            toggleSave(startupOfDay.id);
-          }}
-        />
-      </FadeInView>
+      {startupOfDay && (
+        <FadeInView delay={60}>
+          <SectionHeader label="Startup of the Day" />
+          <HeroCard
+            isSaved={heroSaved}
+            onToggleSave={() => {
+              registerExtra({
+                id: startupOfDay.id,
+                category: "ai-tech",
+                headline: startupOfDay.name,
+                summary: startupOfDay.problemSolved || startupOfDay.oneLiner,
+                whyItMatters: startupOfDay.oneLiner,
+                source: "Startup of the Day",
+                readTime: "3 min read",
+                imageUrl: startupOfDay.imageUrl,
+                publishedAt: startupOfDayUpdatedAt,
+              });
+              toggleSave(startupOfDay.id);
+            }}
+          />
+        </FadeInView>
+      )}
 
       {/* ── For You ── */}
       <FadeInView delay={90}>
@@ -816,21 +818,25 @@ export default function HomeScreen() {
       </FadeInView>
 
       {/* ── New Tech Releases ── */}
-      <FadeInView delay={120}>
-        <SectionHeader
-          label="New Tech Releases"
-          onSeeAll={() => router.push({ pathname: "/(tabs)/discover", params: { category: "ai-tech" } })}
-        />
-        <HScrollView>
-          {techReleases.map(item => <TechReleaseCard key={item.id} item={item} />)}
-        </HScrollView>
-      </FadeInView>
+      {techReleases.length > 0 && (
+        <FadeInView delay={120}>
+          <SectionHeader
+            label="New Tech Releases"
+            onSeeAll={() => router.push({ pathname: "/(tabs)/discover", params: { category: "ai-tech" } })}
+          />
+          <HScrollView>
+            {techReleases.map(item => <TechReleaseCard key={item.id} item={item} />)}
+          </HScrollView>
+        </FadeInView>
+      )}
 
       {/* ── Startups to Watch ── */}
-      <FadeInView delay={150}>
-        <SectionHeader label="Startups to Watch" />
-        <StartupsCarousel items={newStartups} />
-      </FadeInView>
+      {newStartups.length > 0 && (
+        <FadeInView delay={150}>
+          <SectionHeader label="Startups to Watch" />
+          <StartupsCarousel items={newStartups} />
+        </FadeInView>
+      )}
 
       {/* ── Browse by Topic pill bar ── */}
       <FadeInView delay={180}>
