@@ -613,7 +613,7 @@ function ForYouCard({ story }: { story: DiscoverStory }) {
   return (
     <ScaleCard
       style={styles.forYouCard}
-      onPress={() => router.push({ pathname: "/(tabs)/discover", params: { category: story.category } })}
+      onPress={() => router.push({ pathname: "/(tabs)/discover", params: { filter: story.category } })}
     >
       <View style={styles.forYouInner}>
         {/* Left: text */}
@@ -839,7 +839,7 @@ export default function HomeScreen() {
         <FadeInView delay={120}>
           <SectionHeader
             label="New Tech Releases"
-            onSeeAll={() => router.push({ pathname: "/(tabs)/discover", params: { category: "ai-tech" } })}
+            onSeeAll={() => router.push({ pathname: "/(tabs)/discover", params: { filter: "ai-tech" } })}
           />
           <HScrollView>
             {techReleases.map(item => <TechReleaseCard key={item.id} item={item} />)}
